@@ -1,0 +1,22 @@
+name: Upadate PR actions
+
+on: [
+  pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest 
+    steps:
+      - uses: actions/checkout@v3
+      - name: Use Node.js v16
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+      - run: npm ci
+      - run: npm run build
+      - run: npm run test-ci
+      - name: Archive test report
+        uses: actions/upload-artifact@v3
+        with:
+          name: Unit tests report 
+          path: test-report.html
