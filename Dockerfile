@@ -2,8 +2,8 @@ FROM node:16.13.0-slim
 WORKDIR /src
 
 COPY . .
-RUN npm i 
-RUN npm RUN
+RUN npm ci 
+RUN npm run
 
-CMD ['npm', 'start']
+CMD npm start
 
