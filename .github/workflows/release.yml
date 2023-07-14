@@ -28,6 +28,31 @@ jobs:
                 echo "author=${{ github.actor }}" >> $GITHUB_OUTPUT
                 echo "date=$(date +'%d.%m.%Y %H:%M:%S')" >> $GITHUB_OUTPUT
 
+            - name: Build Changelog
+              id: build_changelog
+              uses: ardalanamini/auto-changelog@v4
+              with:
+                  github-token: ${{ github.token }}
+                  commit-types: |
+                    build: 🚀 Build System & Dependencies
+                    ci:  Continuous Integrations
+                    docs: 📖 Documentation
+                    feat: 🐛 New Features
+                    fix: 🐞 Bug Fixes
+                    perf: 🔥 Performance Improvements
+                    refactor: 🔨 Refactors
+                    revert: 🔙 Reverts
+                    style: 🔧 Code Style
+                    test: 🧪 Tests
+                  default-commit-type: 📂 Other Changes
+                  mention-authors: true
+                  mention-new-contributors: false
+                  include-compare-link: true
+                  include-pr-links: true
+                  include-commit-links: true
+                  semver: false
+                  use-github-autolink: true
+
             - name: Create issue
               id: create_issue
               run: |
