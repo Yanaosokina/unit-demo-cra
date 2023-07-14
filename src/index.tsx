@@ -1,4 +1,4 @@
-import { createRoot } from "react-dom/client";
+import { createRoot } from 'react-dom/client';
 import { Provider } from "react-redux";
 import { BrowserRouter } from "react-router-dom";
 import { Application } from "./Application";
@@ -14,7 +14,7 @@ if (container) {
   const store = initStore();
 
   root.render(
-    <BrowserRouter>
+    <BrowserRouter basename={process.env.PUBLIC_URL}>
       <Provider store={store}>
         <Application />
       </Provider>
