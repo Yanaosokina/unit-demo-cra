@@ -1,0 +1,87 @@
+name: Release
+
+on:
+    push:
+        tags: 
+         - 'v[0-9]+'
+
+jobs:
+    tests:
+        uses: ./.github/workflows/main.yml
+    
+    release:
+        needs: [tests]
+        runs-on: ubuntu-latest
+        permissions:
+            issues: write
+        steps:
+            - uses: actions/checkout@v3
+              with:
+                fetch-depth: 0
+            - name: Get information
+              id: tags
+              run: |
+                currentTag=${{ github.ref_name }}
+                previousTag=$(git --no-pager tag --sort=creatordate --merged ${{ github.ref_name }} | tail -2 | head -1)
+                echo "currentTag=${currentTag}" >> $GITHUB_OUTPUT
+                echo "previousTag=${previousTag}" >> $GITHUB_OUTPUT
+                echo "author=${{ github.actor }}" >> $GITHUB_OUTPUT
+                echo "date=$(date +'%d.%m.%Y %H:%M:%S')" >> $GITHUB_OUTPUT
+
+            - name: Create issue
+              id: create_issue
+              run: |
+                issue_title="[${{ github.ref_name }}] Release"
+                issue_body="## 👀 Information\n" \
+                         "- **Version:** ${{ steps.tags.outputs.currentTag }}\n" \
+                         "- **Author:** ${{ steps.tags.outputs.author }}\n" \
+                         "- **Date:** ${{ steps.tags.outputs.date }}\n\n" \
+                         "${{ steps.build_changelog.outputs.changelog }}"
+          
+                echo "::set-output name=title::${issue_title}"
+                echo "::set-output name=body::${issue_body}"
+
+            - name: Comment issue with test results
+              uses: peter-evans/create-or-update-comment@v3
+              with:
+                issue-number: ${{ steps.create_issue.outputs.issue-number }}
+                body: |
+                    ## 👀 Tests results
+                    Download the files with the test results, can be downloaded from the link below:
+                    ${{github.server_url}}/${{ github.repository }}/actions/runs/${{github.run_id}}
+
+        outputs: 
+          issue-number: ${{ steps.create_issue.outputs.issue-number }}
+    
+    build-and-deploy: 
+        needs: release
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v3
+            - uses: actions/setup-node@v3
+              with: 
+                node-version: 16.13.0
+            - name: Install & Build
+              run: |
+                npm ci
+                PUBLIC_URL="/unit-demo-cra" npm run build
+            - name: Deploy
+              uses: JamesIves/github-pages-deploy-action@v4 
+              with:
+                branch: gh-pages
+                folder: build
+            - name: Comment
+              uses: peter-evans/create-or-update-comment@v3
+              with:
+                issue-number: ${{ needs.release.outputs.issue-number }}
+                body: |
+                    ## 👀 Deploy
+                    The deploy is done with the following command:
+                    ${{github.server_url}}/${{ github.repository }}
+              env:
+                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            
+            - name: Close issue
+              uses: peter-evans/close-issue@v2
+              with:
+                issue-number: ${{ needs.release.outputs.issue-number }}
