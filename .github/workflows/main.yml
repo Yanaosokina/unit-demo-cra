@@ -1,8 +1,6 @@
 name: Merge PR actions
 
-on:
-  push:
-    branches: [master]
+on: push
 
 jobs:
   build:

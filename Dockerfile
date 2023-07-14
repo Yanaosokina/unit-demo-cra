@@ -1,9 +1,8 @@
 FROM node:16.13.0-slim
 WORKDIR /src
 
-COPY . .
+COPY . /src
 RUN npm ci 
-RUN npm run
+RUN npm run build
 
-CMD npm start
-
+CMD ['node', '/src' ]
