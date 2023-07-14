@@ -1,24 +1,63 @@
-name: Merge PR actions
+name: Check for tests
 
-on: push
+on: [pull_request, workflow_call]
 
 jobs:
-  build:
-
-    runs-on: ubuntu-latest 
-
+  lint:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Use Node.js v16
-        uses: actions/setup-node@v3
+      - uses: actions/setup-node@v3
         with:
-          node-version: 16.13.0
-      - run: npm ci
-      - run: npm run build
-      - run: npm run test-ci
-      - name: Deploy with gh-pages
+          node-version: 16
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+  
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Run unit tests
+        run: npm run test-ci 
+      - uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: test-results
+          path: test-report.html
+          retention-days: 30
+  e2e-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Run e2e tests
+        run: npx playwright install --with-deps
+      - name: Download xvfb
         run: |
-          git remote set-url origin https://git:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git
-          npm run deploy -- -u "github-actions-bot <support+actions@github.com>"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          sudo apt update
+          sudo apt-get install xvfb -y
+
+      - name: Run e2e tests
+        run: xvfb-run npx playwright test
+
+      - uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: e2e-results
+          path: playwright-report/
+          retention-days: 30
+          
