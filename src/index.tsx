@@ -5,7 +5,7 @@ import { Application } from "./Application";
 import { initStore } from "./store";
 
 import "./index.css";
-
+//comment
 const container = document.getElementById("root");
 
 if (container) {
