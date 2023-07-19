@@ -1,0 +1,12 @@
+---
+title: '[{{ env.VERSION }}] Release'
+labels: RELEASE
+---
+
+## 👀 Information
+
+- **Version:** {{ env.VERSION}}
+- **Author:** {{ env.AUTHOR }}
+- **Date:** {{ env.DATE}}
+
+{{ env.CHANGELOG}}

@@ -10,10 +10,11 @@ jobs:
         uses: ./.github/workflows/main.yml
     
     release:
-        needs: [tests]
+        needs: tests
         runs-on: ubuntu-latest
         permissions:
             issues: write
+            contents: read
         steps:
             - uses: actions/checkout@v3
               with:
@@ -53,60 +54,83 @@ jobs:
                   semver: false
                   use-github-autolink: true
 
-            - name: Create issue
+            - name: Create/update issue
               id: create_issue
-              run: |
-                issue_title="[${{ github.ref_name }}] Release"
-                issue_body="## 👀 Information\n" \
-                         "- **Version:** ${{ steps.tags.outputs.currentTag }}\n" \
-                         "- **Author:** ${{ steps.tags.outputs.author }}\n" \
-                         "- **Date:** ${{ steps.tags.outputs.date }}\n\n" \
-                         "${{ steps.build_changelog.outputs.changelog }}"
-          
-                echo "::set-output name=title::${issue_title}"
-                echo "::set-output name=body::${issue_body}"
-
-            - name: Comment issue with test results
+              uses: JasonEtco/create-an-issue@v2
+              env:
+                VESION: ${{ steps.tags.outputs.currentTag }}
+                AUTHOR: ${{ steps.tags.outputs.author }}
+                DATE: ${{ steps.tags.outputs.date }}
+                CHANGELOG: ${{ steps.build_changelog.outputs.changelog }}
+                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              with: 
+                filename: .github/ISSUE.mb
+                update_existing: true
+                search_existing: all
+            
+            - name: Comment issue
               uses: peter-evans/create-or-update-comment@v3
               with:
                 issue-number: ${{ steps.create_issue.outputs.issue-number }}
                 body: |
-                    ## 👀 Tests results
-                    Download the files with the test results, can be downloaded from the link below:
-                    ${{github.server_url}}/${{ github.repository }}/actions/runs/${{github.run_id}}
-
+                    ## 👀 Release
+                    ${{github.server_url}}/${{ github.repository }}
+              env:
+                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         outputs: 
-          issue-number: ${{ steps.create_issue.outputs.issue-number }}
-    
+          issue-number: ${{ steps.create_issue.outputs.issue-number }}  
+
     build-and-deploy: 
         needs: release
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v3
-            - uses: actions/setup-node@v3
+              with:
+                token: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Creating release
+              run: |
+                git chekout -b release-${{github.ref_name}}
+                git push -u origin release-${{ github.ref_name }}
+
+            - name: Node install
+              uses: actions/setup-node@v3
               with: 
                 node-version: 16.13.0
+
             - name: Install & Build
               run: |
                 npm ci
                 PUBLIC_URL="/unit-demo-cra" npm run build
+
             - name: Deploy
               uses: JamesIves/github-pages-deploy-action@v4 
               with:
-                branch: gh-pages
-                folder: build
-            - name: Comment
-              uses: peter-evans/create-or-update-comment@v3
-              with:
-                issue-number: ${{ needs.release.outputs.issue-number }}
-                body: |
+                folder: build\
+
+        outputs:
+          issueNumber: ${{ needs.release.outputs.issue-number }}
+
+    close-issue:
+      permissions:
+        contents: read
+        issues: write
+
+      needs: build-and-deploy
+      runs-on: ubuntu-latest
+      steps:
+        - name: Comment
+          uses: peter-evans/create-or-update-comment@v3
+          with:
+            issue-number: ${{ needs.build-and-deploy.outputs.issueNumber }}
+            body: |
                     ## 👀 Deploy
                     The deploy is done with the following command:
                     ${{github.server_url}}/${{ github.repository }}
-              env:
-                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
             
-            - name: Close issue
-              uses: peter-evans/close-issue@v2
-              with:
-                issue-number: ${{ needs.release.outputs.issue-number }}
+        - name: Close issue
+          uses: peter-evans/close-issue@v2
+          with:
+            issue-number: ${{ needs.build-and-deploy.outputs.issueNumber }}
